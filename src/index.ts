@@ -172,6 +172,7 @@ app.post<{ Params: RunParams }>(
       .single();
 
     console.log("Running script:", scriptId, script);
+    console.log("Script code:", script?.code);
 
     if (!script) return reply.code(404).send({ error: "Script not found" });
     const outputKey = `runs/${crypto.randomUUID()}`;
