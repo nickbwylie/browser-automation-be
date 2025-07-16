@@ -1,6 +1,6 @@
+import { VercelRequest, VercelResponse } from "@vercel/node";
 import fastify, { FastifyRequest, FastifyReply } from "fastify";
 import { createClient } from "@supabase/supabase-js";
-import * as dotenv from "dotenv";
 import {
   ECSClient,
   RunTaskCommand,
@@ -11,16 +11,14 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "crypto";
 import { Readable } from "node:stream";
 
-dotenv.config();
-
 // Augment FastifyRequest to add 'user' property
 declare module "fastify" {
   interface FastifyRequest {
-    user?: any; // Replace 'any' with your Supabase User type if available
+    user?: any;
   }
 }
 
-const app = fastify({ logger: true });
+const app = fastify({ logger: false });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_KEY!
@@ -28,12 +26,31 @@ const supabase = createClient(
 const ecs = new ECSClient({ region: process.env.AWS_REGION });
 const s3 = new S3Client({ region: process.env.AWS_REGION });
 
-// Auth middleware
+// CORS headers for frontend
+app.addHook("preHandler", async (request, reply) => {
+  reply.header("Access-Control-Allow-Origin", "*");
+  reply.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (request.method === "OPTIONS") {
+    return reply.send();
+  }
+});
+
+// Auth middleware (skip for health check)
 app.addHook(
   "preHandler",
   async (request: FastifyRequest, reply: FastifyReply) => {
+    if (request.url === "/" || request.method === "OPTIONS") {
+      return;
+    }
+
     const token = request.headers.authorization?.split(" ")[1];
     if (!token) return reply.code(401).send({ error: "Unauthorized" });
+
     const {
       data: { user },
     } = await supabase.auth.getUser(token);
@@ -43,7 +60,22 @@ app.addHook(
 );
 
 // Health check route
-app.get("/", async () => ({ status: "OK" }));
+app.get("/", async () => ({
+  status: "OK",
+  timestamp: new Date().toISOString(),
+}));
+
+// Get all scripts for user
+app.get("/scripts", async (request: FastifyRequest) => {
+  const { data, error } = await supabase
+    .from("scripts")
+    .select("*")
+    .eq("user_id", request.user?.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+});
 
 // Interface for /scripts body
 interface CreateScriptBody {
@@ -65,12 +97,66 @@ app.post<{ Body: CreateScriptBody }>(
   }
 );
 
+// Update script route
+interface UpdateScriptBody {
+  code: string;
+  name: string;
+}
+
+interface UpdateScriptParams {
+  id: string;
+}
+
+app.put<{ Body: UpdateScriptBody; Params: UpdateScriptParams }>(
+  "/scripts/:id",
+  async (
+    request: FastifyRequest<{
+      Body: UpdateScriptBody;
+      Params: UpdateScriptParams;
+    }>
+  ) => {
+    const { id } = request.params;
+    const { code, name } = request.body;
+
+    const { data, error } = await supabase
+      .from("scripts")
+      .update({ code, name, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", request.user?.id)
+      .select();
+
+    if (error) throw error;
+    return data[0];
+  }
+);
+
+// Delete script route
+interface DeleteScriptParams {
+  id: string;
+}
+
+app.delete<{ Params: DeleteScriptParams }>(
+  "/scripts/:id",
+  async (request: FastifyRequest<{ Params: DeleteScriptParams }>) => {
+    const { id } = request.params;
+
+    const { error } = await supabase
+      .from("scripts")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", request.user?.id);
+
+    if (error) throw error;
+    return { success: true };
+  }
+);
+
 // Interface for /run params
 interface RunParams {
   scriptId: string;
 }
 
-// Run script route (synchronous ECS call, no queue)
+// Run script route
 app.post<{ Params: RunParams }>(
   "/run/:scriptId",
   async (
@@ -82,6 +168,7 @@ app.post<{ Params: RunParams }>(
       .from("scripts")
       .select("code")
       .eq("id", scriptId)
+      .eq("user_id", request.user?.id)
       .single();
 
     console.log("Running script:", scriptId, script);
@@ -114,10 +201,11 @@ app.post<{ Params: RunParams }>(
           ],
         },
       };
+
       await ecs.send(new RunTaskCommand(params));
       return { status: "running", outputKey };
     } catch (err) {
-      app.log.error(err);
+      console.error(err);
       return reply.code(500).send({ error: "Failed to start task" });
     }
   }
@@ -165,8 +253,7 @@ async function streamToString(stream: Readable): Promise<string> {
   });
 }
 
-// Start the server
-app.listen({ port: 3000 }, (err) => {
-  if (err) console.error(err);
-  console.log("Server running on port 3000");
-});
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  await app.ready();
+  app.server.emit("request", req, res);
+}

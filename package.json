@@ -1,9 +1,11 @@
 {
   "name": "browser-automation-backend",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "api/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vercel dev",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -12,16 +14,12 @@
   "dependencies": {
     "@aws-sdk/client-ecs": "^3.844.0",
     "@aws-sdk/client-s3": "^3.844.0",
-    "@fastify/swagger": "^9.5.1",
     "@supabase/supabase-js": "^2.50.5",
-    "bullmq": "^5.56.4",
-    "dotenv": "^17.2.0",
-    "fastify": "^5.4.0",
-    "pg": "^8.16.3"
+    "fastify": "^5.4.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.13",
-    "ts-node": "^10.9.2",
+    "@vercel/node": "^3.0.0",
     "typescript": "^5.8.3"
   }
 }
