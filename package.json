@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "main": "api/index.ts",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'Build complete'",
-    "start": "node api/index.js"
+    "dev": "vercel dev"
   },
   "keywords": [],
   "author": "",
