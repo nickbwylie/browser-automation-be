@@ -1,7 +1,7 @@
 {
   "name": "browser-automation-backend",
   "version": "1.0.0",
-  "main": "src/index.ts",
+  "main": "api/index.ts",
   "scripts": {
     "dev": "vercel dev"
   },

@@ -1,14 +1,14 @@
 {
   "version": 2,
   "functions": {
-    "src/index.ts": {
+    "api/index.ts": {
       "runtime": "@vercel/node@3.0.0"
     }
   },
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/src/index.ts"
+      "dest": "/api/index.ts"
     }
   ]
 }
