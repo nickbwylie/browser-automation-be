@@ -26,18 +26,20 @@ const supabase = createClient(
 const ecs = new ECSClient({ region: process.env.AWS_REGION });
 const s3 = new S3Client({ region: process.env.AWS_REGION });
 
-// CORS headers for frontend
-app.addHook("preHandler", async (request, reply) => {
-  reply.header("Access-Control-Allow-Origin", "*");
-  reply.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS"
-  );
-  reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+// CORS plugin
+app.register(async function (fastify) {
+  fastify.addHook("onRequest", async (request, reply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    reply.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
+    reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  });
 
-  if (request.method === "OPTIONS") {
+  fastify.options("/*", async (request, reply) => {
     return reply.send();
-  }
+  });
 });
 
 // Auth middleware (skip for health check)
@@ -172,7 +174,6 @@ app.post<{ Params: RunParams }>(
       .single();
 
     console.log("Running script:", scriptId, script);
-    console.log("Script code:", script?.code);
 
     if (!script) return reply.code(404).send({ error: "Script not found" });
     const outputKey = `runs/${crypto.randomUUID()}`;
@@ -184,15 +185,15 @@ app.post<{ Params: RunParams }>(
         launchType: LaunchType.FARGATE,
         networkConfiguration: {
           awsvpcConfiguration: {
-            subnets: ["subnet-0dfaea79522b6d2a3", "subnet-004fb83565ba72e41"], // Replace with actual subnet IDs from AWS Console
-            securityGroups: ["sg-082f1a78f3d984d72"], // Replace with actual security group ID
+            subnets: ["subnet-0dfaea79522b6d2a3", "subnet-004fb83565ba72e41"],
+            securityGroups: ["sg-082f1a78f3d984d72"],
             assignPublicIp: AssignPublicIp.ENABLED,
           },
         },
         overrides: {
           containerOverrides: [
             {
-              name: "playwright-task", // Your container name from task definition
+              name: "playwright-task",
               environment: [
                 { name: "SCRIPT_CODE", value: script.code },
                 { name: "OUTPUT_KEY", value: outputKey },
