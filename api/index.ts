@@ -175,6 +175,17 @@ app.post<{ Params: RunParams }>(
 
     console.log("Running script:", scriptId, script);
 
+    console.log("Environment variables:", {
+      ECS_CLUSTER_NAME: process.env.ECS_CLUSTER_NAME,
+      ECS_TASK_DEFINITION: process.env.ECS_TASK_DEFINITION,
+      AWS_REGION: process.env.AWS_REGION,
+      S3_BUCKET: process.env.S3_BUCKET,
+      AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? "SET" : "NOT SET",
+      AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY
+        ? "SET"
+        : "NOT SET",
+    });
+
     if (!script) return reply.code(404).send({ error: "Script not found" });
     const outputKey = `runs/${crypto.randomUUID()}`;
 
