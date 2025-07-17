@@ -2,22 +2,17 @@
   "name": "browser-automation-backend",
   "version": "1.0.0",
   "main": "api/index.ts",
-  "scripts": {
-    "dev": "vercel dev"
+  "engines": {
+    "node": "18.x"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "@aws-sdk/client-ecs": "^3.844.0",
     "@aws-sdk/client-s3": "^3.844.0",
     "@supabase/supabase-js": "^2.50.5",
-    "fastify": "^5.4.0"
+    "@vercel/node": "^3.0.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.13",
-    "@vercel/node": "^3.0.0",
-    "typescript": "^5.8.3"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   }
 }
